@@ -1,0 +1,156 @@
+---
+- name: Install build and runtime dependencies
+  ansible.builtin.apt:
+    name:
+      - git
+      - logrotate
+      - ca-certificates
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# Step 4: system group and user
+- name: Create the coraza-spoa group
+  ansible.builtin.group:
+    name: coraza-spoa
+    system: true
+
+- name: Create the coraza-spoa user
+  ansible.builtin.user:
+    name: coraza-spoa
+    group: coraza-spoa
+    system: true
+    home: /nonexistent
+    create_home: false
+    shell: /usr/sbin/nologin
+    password: "!"
+
+# Step 3: configuration and log directories. The post sets the log group to
+# adm, but the contrib unit has LogsDirectory=coraza-spoa, so systemd chowns
+# the directory to coraza-spoa:coraza-spoa on every start. The role uses that
+# owner so reruns do not fight systemd.
+- name: Create /etc/coraza-spoa
+  ansible.builtin.file:
+    path: /etc/coraza-spoa
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create the log directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: coraza-spoa
+    group: coraza-spoa
+    mode: "0755"
+  loop:
+    - /var/log/coraza-spoa
+    - /var/log/coraza-spoa/audit
+
+- name: Create the log files
+  ansible.builtin.file:
+    path: /var/log/coraza-spoa/{{ item }}
+    state: touch
+    owner: coraza-spoa
+    group: coraza-spoa
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve
+  loop:
+    - server.log
+    - error.log
+    - debug.log
+    - audit/audit.log
+
+# Steps 1, 2 and 7: build, install binary, logrotate and unit. Runs only when
+# the installed build is not coraza_spoa_version.
+- name: Read the installed coraza-spoa build version
+  ansible.builtin.slurp:
+    src: /usr/local/share/coraza-spoa/VERSION
+  register: coraza_spoa_installed
+  failed_when: false
+
+- name: Build and install coraza-spoa
+  ansible.builtin.include_tasks: build.yml
+  when: >-
+    coraza_spoa_installed.content is not defined
+    or (coraza_spoa_installed.content | b64decode | trim) != coraza_spoa_version
+
+# Step 5: agent configuration
+- name: Write /etc/coraza-spoa/config.yaml
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/coraza-spoa/config.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart coraza-spoa
+
+# Step 6: Coraza base configuration and the OWASP Core Rule Set
+- name: Download coraza.conf-recommended {{ coraza_spoa_coraza_version }}
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/corazawaf/coraza/{{ coraza_spoa_coraza_version }}/coraza.conf-recommended
+    dest: /etc/coraza-spoa/coraza.conf-recommended-{{ coraza_spoa_coraza_version }}
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Read coraza.conf-recommended
+  ansible.builtin.slurp:
+    src: /etc/coraza-spoa/coraza.conf-recommended-{{ coraza_spoa_coraza_version }}
+  register: coraza_spoa_recommended
+
+- name: Write /etc/coraza-spoa/coraza.conf with SecRuleEngine {{ coraza_spoa_rule_engine }}
+  ansible.builtin.copy:
+    content: "{{ coraza_spoa_recommended.content | b64decode | regex_replace('(?m)^SecRuleEngine .*$', 'SecRuleEngine ' ~ coraza_spoa_rule_engine) }}"
+    dest: /etc/coraza-spoa/coraza.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart coraza-spoa
+
+# The post clones the v4 tag with git; the release tarball of the same tag has
+# the same files and is idempotent (a re-run git clone of a shallow tag fails
+# in the git module).
+- name: Create the CRS source directory
+  ansible.builtin.file:
+    path: "{{ coraza_spoa_crs_src }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download the OWASP Core Rule Set {{ coraza_spoa_crs_version }}
+  ansible.builtin.unarchive:
+    src: https://github.com/coreruleset/coreruleset/archive/refs/tags/{{ coraza_spoa_crs_version }}.tar.gz
+    dest: "{{ coraza_spoa_crs_src }}"
+    remote_src: true
+    creates: "{{ _coraza_spoa_crs_dir }}/rules"
+
+- name: Install crs-setup.conf
+  ansible.builtin.copy:
+    src: "{{ _coraza_spoa_crs_dir }}/crs-setup.conf.example"
+    dest: /etc/coraza-spoa/crs-setup.conf
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart coraza-spoa
+
+- name: Install the CRS rules
+  ansible.builtin.copy:
+    src: "{{ _coraza_spoa_crs_dir }}/rules"
+    dest: /etc/coraza-spoa/
+    remote_src: true
+    owner: root
+    group: root
+    mode: preserve
+  notify: Restart coraza-spoa
+
+- name: Enable and start coraza-spoa
+  ansible.builtin.systemd_service:
+    name: coraza-spoa.service
+    enabled: true
+    state: started
+    daemon_reload: true

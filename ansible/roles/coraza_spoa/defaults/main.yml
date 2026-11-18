@@ -1,0 +1,21 @@
+---
+# Versions from the post
+coraza_spoa_version: "v0.9.1"
+coraza_spoa_go_version: "1.27.4"      # the build needs Go 1.25 or newer
+coraza_spoa_coraza_version: "v3.8.1"  # source of coraza.conf-recommended
+coraza_spoa_crs_version: "v4.25.0"
+
+# Blocking mode ("On") as in the post; "DetectionOnly" only logs
+coraza_spoa_rule_engine: "On"
+
+coraza_spoa_bind: "127.0.0.1:9000"
+coraza_spoa_application: haproxy_waf
+coraza_spoa_log_level: info
+coraza_spoa_response_check: false
+coraza_spoa_transaction_ttl_ms: 60000
+
+# Go toolchain and source tree used for the build; removed afterwards unless
+# coraza_spoa_keep_build_tools is true. A version change rebuilds.
+coraza_spoa_build_dir: /opt/coraza-spoa-build
+coraza_spoa_keep_build_tools: false
+coraza_spoa_crs_src: /usr/local/src/coreruleset

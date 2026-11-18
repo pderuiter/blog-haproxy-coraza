@@ -1,0 +1,28 @@
+---
+# Step 9: SPOE configuration (written first: haproxy.cfg refers to it)
+- name: Write /etc/haproxy/coraza.cfg
+  ansible.builtin.template:
+    src: coraza.cfg.j2
+    dest: /etc/haproxy/coraza.cfg
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart haproxy
+
+# Step 8: frontend and backends, added to the packaged haproxy.cfg
+- name: Add the Coraza frontend and backends to haproxy.cfg
+  ansible.builtin.blockinfile:
+    path: /etc/haproxy/haproxy.cfg
+    marker: "# {mark} ANSIBLE MANAGED BLOCK coraza"
+    block: "{{ lookup('ansible.builtin.template', 'haproxy-coraza.cfg.j2') }}"
+    # Step 10: haproxy -c before the file is replaced
+    validate: haproxy -c -f %s
+    backup: true
+  notify: Restart haproxy
+
+# Step 10: enable; the handler restarts (not starts) so the new config loads
+- name: Enable and start HAProxy
+  ansible.builtin.systemd_service:
+    name: haproxy.service
+    enabled: true
+    state: started

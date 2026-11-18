@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: coraza_spoa
+  namespace: pderuiter
+  author: Patrick de Ruiter
+  description: Build and run the Coraza-SPOA WAF agent with the OWASP Core Rule Set
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+  galaxy_tags:
+    - haproxy
+    - waf
+    - coraza
+
+dependencies: []

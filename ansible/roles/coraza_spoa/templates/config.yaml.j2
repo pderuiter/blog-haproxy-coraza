@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# Bind address
+bind: {{ coraza_spoa_bind }}
+
+log_level: {{ coraza_spoa_log_level }}
+log_file: /var/log/coraza-spoa/server.log
+log_format: console
+
+default_application: {{ coraza_spoa_application }}
+
+applications:
+  - name: {{ coraza_spoa_application }}
+    directives: |
+      Include /etc/coraza-spoa/coraza.conf
+      Include /etc/coraza-spoa/crs-setup.conf
+      Include /etc/coraza-spoa/plugins/*-config.conf
+      Include /etc/coraza-spoa/rules/*.conf
+    response_check: {{ coraza_spoa_response_check | lower }}
+    transaction_ttl_ms: {{ coraza_spoa_transaction_ttl_ms }}
+    log_level: {{ coraza_spoa_log_level }}
+    log_file: /var/log/coraza-spoa/server.log
+    log_format: console

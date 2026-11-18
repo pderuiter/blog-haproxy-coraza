@@ -1,0 +1,86 @@
+---
+- name: Create the build directory
+  ansible.builtin.file:
+    path: "{{ coraza_spoa_build_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Go for the build, version {{ coraza_spoa_go_version }}
+  ansible.builtin.unarchive:
+    src: https://go.dev/dl/go{{ coraza_spoa_go_version }}.linux-amd64.tar.gz
+    dest: "{{ coraza_spoa_build_dir }}"
+    remote_src: true
+    creates: "{{ coraza_spoa_build_dir }}/go/bin/go"
+
+- name: Clone coraza-spoa {{ coraza_spoa_version }}
+  ansible.builtin.git:
+    repo: https://github.com/corazawaf/coraza-spoa.git
+    dest: "{{ coraza_spoa_build_dir }}/coraza-spoa"
+    version: "{{ coraza_spoa_version }}"
+    force: true
+
+# Step 1: go run mage.go build -> build/coraza-spoa
+- name: Build coraza-spoa
+  ansible.builtin.command:
+    cmd: "{{ coraza_spoa_build_dir }}/go/bin/go run mage.go build"
+    chdir: "{{ coraza_spoa_build_dir }}/coraza-spoa"
+  environment:
+    PATH: "{{ coraza_spoa_build_dir }}/go/bin:{{ ansible_env.PATH }}"
+    GOPATH: "{{ coraza_spoa_build_dir }}/gopath"
+    GOCACHE: "{{ coraza_spoa_build_dir }}/gocache"
+  changed_when: true
+
+# Step 2: /usr/bin is the path the contrib unit starts
+- name: Install /usr/bin/coraza-spoa
+  ansible.builtin.copy:
+    src: "{{ coraza_spoa_build_dir }}/coraza-spoa/build/coraza-spoa"
+    dest: /usr/bin/coraza-spoa
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart coraza-spoa
+
+# Step 7: logrotate configuration and systemd unit from contrib/
+- name: Install the logrotate configuration
+  ansible.builtin.copy:
+    src: "{{ coraza_spoa_build_dir }}/coraza-spoa/contrib/coraza-spoa.logrotate"
+    dest: /etc/logrotate.d/coraza-spoa
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install the systemd unit
+  ansible.builtin.copy:
+    src: "{{ coraza_spoa_build_dir }}/coraza-spoa/contrib/coraza-spoa.service"
+    dest: /lib/systemd/system/coraza-spoa.service
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart coraza-spoa
+
+- name: Create /usr/local/share/coraza-spoa
+  ansible.builtin.file:
+    path: /usr/local/share/coraza-spoa
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write the build version marker
+  ansible.builtin.copy:
+    content: "{{ coraza_spoa_version }}\n"
+    dest: /usr/local/share/coraza-spoa/VERSION
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Remove the Go toolchain and the source tree
+  ansible.builtin.file:
+    path: "{{ coraza_spoa_build_dir }}"
+    state: absent
+  when: not coraza_spoa_keep_build_tools

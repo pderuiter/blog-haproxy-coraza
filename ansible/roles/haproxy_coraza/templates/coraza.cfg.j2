@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+[coraza]
+spoe-agent coraza-agent
+    messages coraza-req
+    option var-prefix coraza
+    option set-on-error error
+    timeout processing {{ haproxy_coraza_timeout_processing }}
+    use-backend coraza-spoa
+
+spoe-message coraza-req
+    # Arguments are required to be in this order
+    args app=str({{ haproxy_coraza_application }}) src-ip=src src-port=src_port dst-ip=dst dst-port=dst_port method=method path=path query=query version=req.ver headers=req.hdrs body=req.body
+    event on-frontend-http-request

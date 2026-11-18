@@ -1,0 +1,6 @@
+---
+# Versions from the post. See the role defaults for everything else.
+haproxy_install_version: "3.3"
+coraza_spoa_version: "v0.9.1"
+coraza_spoa_crs_version: "v4.25.0"
+coraza_spoa_rule_engine: "On"

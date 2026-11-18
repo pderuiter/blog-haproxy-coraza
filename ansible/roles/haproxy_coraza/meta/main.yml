@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: haproxy_coraza
+  namespace: pderuiter
+  author: Patrick de Ruiter
+  description: HAProxy frontend, backends and SPOE configuration that send requests to Coraza-SPOA
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+  galaxy_tags:
+    - haproxy
+    - waf
+    - coraza
+
+dependencies: []

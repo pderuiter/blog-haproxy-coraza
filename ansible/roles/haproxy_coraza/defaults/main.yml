@@ -1,0 +1,16 @@
+---
+# Frontend from step 8 of the post
+haproxy_coraza_frontend_name: static_test
+haproxy_coraza_bind: "*:80"
+
+# Backend that serves the protected content. The default is the post's static
+# test backend; set haproxy_coraza_backend_servers to proxy to real servers.
+haproxy_coraza_backend_name: bsdserver_static
+haproxy_coraza_backend_servers: []
+#  - name: web1
+#    address: 10.0.0.21:8080
+
+# Must match the agent (coraza_spoa_bind / coraza_spoa_application)
+haproxy_coraza_agent_address: "127.0.0.1:9000"
+haproxy_coraza_application: haproxy_waf
+haproxy_coraza_timeout_processing: 500ms

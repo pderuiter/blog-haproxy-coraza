@@ -1,0 +1,8 @@
+---
+- name: HAProxy with the Coraza-SPOA WAF
+  hosts: waf
+  gather_facts: true
+  roles:
+    - role: haproxy_install
+    - role: coraza_spoa
+    - role: haproxy_coraza

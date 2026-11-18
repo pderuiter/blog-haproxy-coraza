@@ -1,0 +1,3 @@
+---
+# The tag tarball unpacks to coreruleset-<version without the leading v>
+_coraza_spoa_crs_dir: "{{ coraza_spoa_crs_src }}/coreruleset-{{ coraza_spoa_crs_version | regex_replace('^v', '') }}"
